@@ -62,7 +62,7 @@ fun OverviewCards(
             MetricCard(
                 title = "Spent This Month",
                 amountStr = CurrencyUtils.format(metrics.totalSpentThisMonth, metrics.currencySymbol),
-                subtitle = "of ${CurrencyUtils.formatCompact(metrics.monthlyBudget, metrics.currencySymbol)} budget",
+                subtitle = if (metrics.monthlyBudget > 0) "of ${CurrencyUtils.formatCompact(metrics.monthlyBudget, metrics.currencySymbol)} budget" else "No monthly limit set",
                 icon = Icons.Default.AccountBalanceWallet,
                 iconTint = MaterialTheme.colorScheme.primary,
                 iconBg = MaterialTheme.colorScheme.primaryContainer,
@@ -73,8 +73,8 @@ fun OverviewCards(
 
             MetricCard(
                 title = "Remaining Budget",
-                amountStr = CurrencyUtils.format(metrics.remainingMonthlyBudget.coerceAtLeast(0.0), metrics.currencySymbol),
-                subtitle = if (metrics.remainingMonthlyBudget < 0) "Over by ${CurrencyUtils.format(-metrics.remainingMonthlyBudget, metrics.currencySymbol)}" else "${(100f - metrics.budgetPercentUsed).coerceAtLeast(0f).toInt()}% left",
+                amountStr = if (metrics.monthlyBudget > 0) CurrencyUtils.format(metrics.remainingMonthlyBudget.coerceAtLeast(0.0), metrics.currencySymbol) else "—",
+                subtitle = if (metrics.monthlyBudget <= 0) "Configure in Settings" else if (metrics.remainingMonthlyBudget < 0) "Over by ${CurrencyUtils.format(-metrics.remainingMonthlyBudget, metrics.currencySymbol)}" else "${(100f - metrics.budgetPercentUsed).coerceAtLeast(0f).toInt()}% left",
                 icon = Icons.Default.TrendingUp,
                 iconTint = remainingColor,
                 iconBg = remainingColor.copy(alpha = 0.12f),

@@ -227,7 +227,7 @@ fun MainScreen(
                         onUpdateMonthlyBudget = { viewModel.updateMonthlyBudget(it) },
                         onUpdateCurrencySymbol = { viewModel.updateCurrencySymbol(it) },
                         onUpdateCategoryBudget = { cat, limit -> viewModel.updateCategoryBudget(cat, limit) },
-                        onResetData = { viewModel.resetData() }
+                        onClearAllExpenses = { viewModel.clearAllExpenses() }
                     )
                 }
             }

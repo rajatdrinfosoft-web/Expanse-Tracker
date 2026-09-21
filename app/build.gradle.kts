@@ -1,4 +1,5 @@
 import com.google.gms.googleservices.GoogleServicesPlugin.MissingGoogleServicesStrategy
+import java.util.Base64
 
 plugins {
   alias(libs.plugins.android.application)
@@ -7,6 +8,19 @@ plugins {
   alias(libs.plugins.roborazzi)
   alias(libs.plugins.secrets)
   alias(libs.plugins.google.services)
+}
+
+// Ensure debug.keystore exists before signing configuration is evaluated
+val debugKeystoreFile = file("${rootDir}/debug.keystore")
+val debugKeystoreBase64File = file("${rootDir}/debug.keystore.base64")
+if (!debugKeystoreFile.exists() && debugKeystoreBase64File.exists()) {
+  try {
+    val cleanBase64 = debugKeystoreBase64File.readText().replace("\\s".toRegex(), "")
+    val decodedBytes = Base64.getDecoder().decode(cleanBase64)
+    debugKeystoreFile.writeBytes(decodedBytes)
+  } catch (e: Exception) {
+    logger.warn("Unable to restore debug.keystore from debug.keystore.base64: ${e.message}")
+  }
 }
 
 android {

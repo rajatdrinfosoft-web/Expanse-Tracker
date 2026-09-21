@@ -37,6 +37,9 @@ interface ExpenseDao {
     @Query("DELETE FROM expenses")
     suspend fun deleteAllExpenses()
 
+    @Query("DELETE FROM expenses WHERE notes IN (:notes)")
+    suspend fun deleteExpensesByNotes(notes: List<String>)
+
     @Query("SELECT * FROM category_budgets")
     fun getAllCategoryBudgets(): Flow<List<CategoryBudgetEntity>>
 

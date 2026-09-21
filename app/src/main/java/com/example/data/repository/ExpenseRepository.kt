@@ -42,8 +42,14 @@ class ExpenseRepository(private val expenseDao: ExpenseDao) {
         expenseDao.insertOrUpdateUserSettings(settings)
     }
 
-    suspend fun populateSampleData() {
-        com.example.data.db.ExpenseDatabase.populateInitialData(expenseDao)
+    suspend fun removeDemoExpenses() {
+        val demoNotes = listOf(
+            "Organic Grocery Market", "Metro Rail Pass", "Morning Artisan Coffee",
+            "Running shoes & socks", "High-speed Internet Bill", "Lunch with colleagues",
+            "Cinema tickets", "Vitamin supplements", "Electricity & Power bill",
+            "Cab ride to airport", "Weekly family supermarket", "Notebook and desk accessories"
+        )
+        expenseDao.deleteExpensesByNotes(demoNotes)
     }
 
     suspend fun deleteAllExpenses() {

@@ -2,5 +2,7 @@
   "name": "Expanse Tracker",
   "description": "Daily expense tracker app for effortless logging, budget monitoring, and spending analytics.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

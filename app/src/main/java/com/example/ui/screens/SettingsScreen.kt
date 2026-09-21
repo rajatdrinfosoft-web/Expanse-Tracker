@@ -22,10 +22,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.AlertDialog
@@ -74,11 +73,11 @@ fun SettingsScreen(
     onUpdateMonthlyBudget: (Double) -> Unit,
     onUpdateCurrencySymbol: (String) -> Unit,
     onUpdateCategoryBudget: (categoryName: String, limit: Double) -> Unit,
-    onResetData: () -> Unit,
+    onClearAllExpenses: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var showMonthlyBudgetDialog by remember { mutableStateOf(false) }
-    var showResetConfirmDialog by remember { mutableStateOf(false) }
+    var showClearConfirmDialog by remember { mutableStateOf(false) }
 
     // Calculate current month category spending and total
     val currentMonthStart = DateUtils.getStartOfMonth()
@@ -152,11 +151,11 @@ fun SettingsScreen(
                                 .background(MaterialTheme.colorScheme.primaryContainer),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.AttachMoney,
-                                contentDescription = "Budget",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(24.dp)
+                            Text(
+                                text = currencySymbol,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                         Spacer(modifier = Modifier.width(14.dp))
@@ -215,7 +214,7 @@ fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        listOf("$", "€", "£", "₹", "¥", "C$").forEach { symbol ->
+                        listOf("₹", "$", "€", "£", "¥", "C$").forEach { symbol ->
                             val isSelected = currencySymbol == symbol
                             Box(
                                 modifier = Modifier
@@ -359,7 +358,7 @@ fun SettingsScreen(
             }
         }
 
-        // Sample Data & Reset Section
+        // Data Management Section
         item(key = "data_management") {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -369,30 +368,33 @@ fun SettingsScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "Demo & Data Tools",
+                        text = "Data Management",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Reload sample expenses across all categories to explore charts and trends.",
+                        text = "Permanently clear all recorded expenses to start fresh.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     OutlinedButton(
-                        onClick = { showResetConfirmDialog = true },
+                        onClick = { showClearConfirmDialog = true },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        )
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Reset",
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Clear All",
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Reset to Sample Demo Data")
+                        Text("Clear All Expenses")
                     }
                 }
             }
@@ -440,27 +442,27 @@ fun SettingsScreen(
         )
     }
 
-    // Dialog: Confirm Reset to Sample Data
-    if (showResetConfirmDialog) {
+    // Dialog: Confirm Clear All Expenses
+    if (showClearConfirmDialog) {
         AlertDialog(
-            onDismissRequest = { showResetConfirmDialog = false },
-            title = { Text("Reset to Sample Data?") },
+            onDismissRequest = { showClearConfirmDialog = false },
+            title = { Text("Clear All Expenses?") },
             text = {
-                Text("This will replace current expenses with clean starter sample data across all categories.")
+                Text("This will permanently remove all your recorded expenses. This action cannot be undone.")
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        onResetData()
-                        showResetConfirmDialog = false
+                        onClearAllExpenses()
+                        showClearConfirmDialog = false
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text("Confirm Reset")
+                    Text("Delete All", color = Color.White)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showResetConfirmDialog = false }) {
+                TextButton(onClick = { showClearConfirmDialog = false }) {
                     Text("Cancel")
                 }
             }

@@ -96,7 +96,7 @@ fun SwipeableExpenseItem(
                         contentColor = androidx.compose.ui.graphics.Color.White
                     )
                 ) {
-                    Text("OK / Delete")
+                    Text("Delete")
                 }
             },
             dismissButton = {

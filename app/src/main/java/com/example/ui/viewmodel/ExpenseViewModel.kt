@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Calendar
@@ -51,9 +52,9 @@ data class DashboardMetrics(
     val todaySpend: Double = 0.0,
     val remainingMonthlyBudget: Double = 0.0,
     val dailyAverage: Double = 0.0,
-    val monthlyBudget: Double = 2500.0,
+    val monthlyBudget: Double = 0.0,
     val budgetPercentUsed: Float = 0f,
-    val currencySymbol: String = "$",
+    val currencySymbol: String = "₹",
     val warnings: List<CategoryBudgetWarning> = emptyList()
 )
 
@@ -87,14 +88,30 @@ class ExpenseViewModel(private val repository: ExpenseRepository) : ViewModel() 
     val isAddExpenseSheetOpen = MutableStateFlow(false)
     val editingExpense = MutableStateFlow<ExpenseEntity?>(null)
 
+    init {
+        viewModelScope.launch {
+            repository.removeDemoExpenses()
+            repository.userSettings.firstOrNull()?.let { current ->
+                if (current.currencySymbol == "$" || current.monthlyBudget == 2500.0) {
+                    repository.updateUserSettings(
+                        current.copy(
+                            currencySymbol = if (current.currencySymbol == "$") "₹" else current.currencySymbol,
+                            monthlyBudget = if (current.monthlyBudget == 2500.0) 0.0 else current.monthlyBudget
+                        )
+                    )
+                }
+            }
+        }
+    }
+
     // Combined Dashboard Metrics
     val dashboardMetrics: StateFlow<DashboardMetrics> = combine(
         allExpenses,
         categoryBudgets,
         userSettings
     ) { expenses, budgets, settings ->
-        val currency = settings?.currencySymbol ?: "$"
-        val monthlyBudget = settings?.monthlyBudget ?: 2500.0
+        val currency = settings?.currencySymbol ?: "₹"
+        val monthlyBudget = settings?.monthlyBudget ?: 0.0
 
         val startOfMonth = DateUtils.getStartOfMonth()
         val endOfMonth = DateUtils.getEndOfMonth()
@@ -319,10 +336,9 @@ class ExpenseViewModel(private val repository: ExpenseRepository) : ViewModel() 
         }
     }
 
-    fun resetData() {
+    fun clearAllExpenses() {
         viewModelScope.launch {
             repository.deleteAllExpenses()
-            repository.populateSampleData()
         }
     }
 }

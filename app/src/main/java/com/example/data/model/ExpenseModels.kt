@@ -26,6 +26,6 @@ data class CategoryBudgetEntity(
 data class UserSettingsEntity(
     @PrimaryKey
     val id: Int = 1,
-    val monthlyBudget: Double = 2500.0,
-    val currencySymbol: String = "$"
+    val monthlyBudget: Double = 0.0,
+    val currencySymbol: String = "₹"
 )
