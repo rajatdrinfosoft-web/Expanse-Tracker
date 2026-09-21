@@ -8,6 +8,7 @@ import androidx.room.Query
 import androidx.room.Update
 import com.example.data.model.CategoryBudgetEntity
 import com.example.data.model.ExpenseEntity
+import com.example.data.model.RecurringBillEntity
 import com.example.data.model.UserSettingsEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -54,4 +55,27 @@ interface ExpenseDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrUpdateUserSettings(settings: UserSettingsEntity)
+
+    // Recurring Bills & Subscriptions
+    @Query("SELECT * FROM recurring_bills ORDER BY dueDayOfMonth ASC, id ASC")
+    fun getAllRecurringBills(): Flow<List<RecurringBillEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertRecurringBill(bill: RecurringBillEntity): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertRecurringBills(bills: List<RecurringBillEntity>)
+
+    @Update
+    suspend fun updateRecurringBill(bill: RecurringBillEntity)
+
+    @Delete
+    suspend fun deleteRecurringBill(bill: RecurringBillEntity)
+
+    @Query("DELETE FROM recurring_bills WHERE id = :id")
+    suspend fun deleteRecurringBillById(id: Long)
+
+    @Query("UPDATE recurring_bills SET lastPaidDateMillis = :paidDateMillis WHERE id = :id")
+    suspend fun markBillAsPaid(id: Long, paidDateMillis: Long)
 }
+

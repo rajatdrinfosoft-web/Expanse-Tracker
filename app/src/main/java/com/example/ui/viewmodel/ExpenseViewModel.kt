@@ -79,6 +79,12 @@ class ExpenseViewModel(private val repository: ExpenseRepository) : ViewModel() 
     val userSettings: StateFlow<UserSettingsEntity?> = repository.userSettings
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
+    val recurringBills: StateFlow<List<com.example.data.model.RecurringBillEntity>> = repository.allRecurringBills
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // PDF Export Dialog State
+    val isPdfExportDialogOpen = MutableStateFlow(false)
+
     // Analytics filter state
     val selectedDateFilter = MutableStateFlow(DateRangeFilter.THIS_MONTH)
     val selectedCategoryFilter = MutableStateFlow<String?>(null)
@@ -339,6 +345,57 @@ class ExpenseViewModel(private val repository: ExpenseRepository) : ViewModel() 
     fun clearAllExpenses() {
         viewModelScope.launch {
             repository.deleteAllExpenses()
+        }
+    }
+
+    // PDF Export Dialog Controls
+    fun openPdfExportDialog() {
+        isPdfExportDialogOpen.value = true
+    }
+
+    fun closePdfExportDialog() {
+        isPdfExportDialogOpen.value = false
+    }
+
+    // Recurring Bills Controls
+    fun saveRecurringBill(
+        id: Long = 0,
+        title: String,
+        amount: Double,
+        category: String,
+        paymentMethod: String = "UPI",
+        billingFrequency: String = "Monthly",
+        dueDayOfMonth: Int = 1,
+        notes: String = ""
+    ) {
+        viewModelScope.launch {
+            val bill = com.example.data.model.RecurringBillEntity(
+                id = id,
+                title = title.trim(),
+                amount = amount,
+                category = category,
+                paymentMethod = paymentMethod,
+                billingFrequency = billingFrequency,
+                dueDayOfMonth = dueDayOfMonth.coerceIn(1, 31),
+                notes = notes.trim()
+            )
+            if (id > 0) {
+                repository.updateRecurringBill(bill)
+            } else {
+                repository.insertRecurringBill(bill)
+            }
+        }
+    }
+
+    fun deleteRecurringBill(bill: com.example.data.model.RecurringBillEntity) {
+        viewModelScope.launch {
+            repository.deleteRecurringBill(bill)
+        }
+    }
+
+    fun markBillAsPaid(bill: com.example.data.model.RecurringBillEntity) {
+        viewModelScope.launch {
+            repository.logBillAsPaid(bill)
         }
     }
 }
