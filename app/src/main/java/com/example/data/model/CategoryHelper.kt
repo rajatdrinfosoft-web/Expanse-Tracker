@@ -22,14 +22,14 @@ enum class ExpenseCategory(
     val icon: ImageVector,
     val defaultLimit: Double
 ) {
-    FOOD("Food", Color(0xFFFF6584), Icons.Default.Restaurant, 600.0),
-    TRANSPORT("Transport", Color(0xFF3B82F6), Icons.Default.DirectionsCar, 300.0),
-    UTILITIES("Utilities", Color(0xFFF59E0B), Icons.Default.AccountBalance, 250.0),
-    ENTERTAINMENT("Entertainment", Color(0xFF8B5CF6), Icons.Default.Movie, 200.0),
-    SHOPPING("Shopping", Color(0xFFEC4899), Icons.Default.LocalMall, 400.0),
-    HEALTH("Health", Color(0xFF10B981), Icons.Default.FitnessCenter, 200.0),
-    BILLS("Bills", Color(0xFF0D9488), Icons.Default.ReceiptLong, 400.0),
-    MISCELLANEOUS("Miscellaneous", Color(0xFF64748B), Icons.Default.MoreHoriz, 150.0);
+    FOOD("Food", Color(0xFFFF6584), Icons.Default.Restaurant, 0.0),
+    TRANSPORT("Transport", Color(0xFF3B82F6), Icons.Default.DirectionsCar, 0.0),
+    UTILITIES("Utilities", Color(0xFFF59E0B), Icons.Default.AccountBalance, 0.0),
+    ENTERTAINMENT("Entertainment", Color(0xFF8B5CF6), Icons.Default.Movie, 0.0),
+    SHOPPING("Shopping", Color(0xFFEC4899), Icons.Default.LocalMall, 0.0),
+    HEALTH("Health", Color(0xFF10B981), Icons.Default.FitnessCenter, 0.0),
+    BILLS("Bills", Color(0xFF0D9488), Icons.Default.ReceiptLong, 0.0),
+    MISCELLANEOUS("Miscellaneous", Color(0xFF64748B), Icons.Default.MoreHoriz, 0.0);
 
     companion object {
         fun fromString(name: String): ExpenseCategory {

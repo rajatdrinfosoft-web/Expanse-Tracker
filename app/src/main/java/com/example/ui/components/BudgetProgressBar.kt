@@ -88,7 +88,11 @@ fun BudgetProgressBar(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "${CurrencyUtils.format(metrics.totalSpentThisMonth, metrics.currencySymbol)} of ${CurrencyUtils.formatCompact(metrics.monthlyBudget, metrics.currencySymbol)}",
+                        text = if (metrics.monthlyBudget > 0) {
+                            "${CurrencyUtils.format(metrics.totalSpentThisMonth, metrics.currencySymbol)} of ${CurrencyUtils.formatCompact(metrics.monthlyBudget, metrics.currencySymbol)}"
+                        } else {
+                            "${CurrencyUtils.format(metrics.totalSpentThisMonth, metrics.currencySymbol)} spent (No limit set)"
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -102,7 +106,7 @@ fun BudgetProgressBar(
                         .padding(horizontal = 10.dp, vertical = 5.dp)
                 ) {
                     Text(
-                        text = "${percent.toInt()}% used",
+                        text = if (metrics.monthlyBudget > 0) "${percent.toInt()}% used" else "Not set",
                         color = statusColor,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold

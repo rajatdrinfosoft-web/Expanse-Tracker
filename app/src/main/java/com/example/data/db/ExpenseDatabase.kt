@@ -8,20 +8,20 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.data.model.CategoryBudgetEntity
 import com.example.data.model.ExpenseCategory
 import com.example.data.model.ExpenseEntity
-import com.example.data.model.PaymentMethod
+import com.example.data.model.RecurringBillEntity
 import com.example.data.model.UserSettingsEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java.util.Calendar
 
 @Database(
     entities = [
         ExpenseEntity::class,
         CategoryBudgetEntity::class,
-        UserSettingsEntity::class
+        UserSettingsEntity::class,
+        RecurringBillEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class ExpenseDatabase : RoomDatabase() {
@@ -38,6 +38,7 @@ abstract class ExpenseDatabase : RoomDatabase() {
                     ExpenseDatabase::class.java,
                     "expanse_tracker_db"
                 )
+                    .fallbackToDestructiveMigration()
                     .addCallback(ExpenseDatabaseCallback(scope))
                     .build()
                 INSTANCE = instance
@@ -63,120 +64,51 @@ abstract class ExpenseDatabase : RoomDatabase() {
             dao.insertOrUpdateUserSettings(
                 UserSettingsEntity(
                     id = 1,
-                    monthlyBudget = 2500.0,
-                    currencySymbol = "$"
+                    monthlyBudget = 0.0,
+                    currencySymbol = "₹"
                 )
             )
 
-            // Default category budgets
+            // Default category budgets initialized to 0.0
             val defaultBudgets = ExpenseCategory.allCategories.map { cat ->
                 CategoryBudgetEntity(
                     categoryName = cat.title,
-                    monthlyLimit = cat.defaultLimit
+                    monthlyLimit = 0.0
                 )
             }
             dao.insertCategoryBudgets(defaultBudgets)
 
-            // Seed realistic sample expenses for the current month
-            val now = System.currentTimeMillis()
-            val cal = Calendar.getInstance()
-
-            fun daysAgo(days: Int, hour: Int = 12): Long {
-                val c = Calendar.getInstance()
-                c.add(Calendar.DAY_OF_YEAR, -days)
-                c.set(Calendar.HOUR_OF_DAY, hour)
-                c.set(Calendar.MINUTE, 30)
-                return c.timeInMillis
-            }
-
-            val sampleExpenses = listOf(
-                ExpenseEntity(
-                    amount = 45.50,
-                    category = ExpenseCategory.FOOD.title,
-                    paymentMethod = PaymentMethod.CREDIT_CARD.title,
-                    dateMillis = now - 1000 * 60 * 90, // 1.5 hours ago
-                    notes = "Organic Grocery Market"
+            // Sample Recurring Subscriptions & Bills
+            val initialBills = listOf(
+                RecurringBillEntity(
+                    title = "Fiber Broadband Internet",
+                    amount = 999.0,
+                    category = "Bills",
+                    paymentMethod = "UPI",
+                    billingFrequency = "Monthly",
+                    dueDayOfMonth = 5,
+                    notes = "High-speed home connection"
                 ),
-                ExpenseEntity(
-                    amount = 18.25,
-                    category = ExpenseCategory.TRANSPORT.title,
-                    paymentMethod = PaymentMethod.UPI_ONLINE.title,
-                    dateMillis = now - 1000 * 60 * 360, // 6 hours ago
-                    notes = "Metro Rail Pass"
+                RecurringBillEntity(
+                    title = "Netflix Premium 4K",
+                    amount = 649.0,
+                    category = "Entertainment",
+                    paymentMethod = "Credit Card",
+                    billingFrequency = "Monthly",
+                    dueDayOfMonth = 15,
+                    notes = "Family streaming plan"
                 ),
-                ExpenseEntity(
-                    amount = 12.00,
-                    category = ExpenseCategory.FOOD.title,
-                    paymentMethod = PaymentMethod.CASH.title,
-                    dateMillis = daysAgo(1, 9),
-                    notes = "Morning Artisan Coffee"
-                ),
-                ExpenseEntity(
-                    amount = 79.99,
-                    category = ExpenseCategory.SHOPPING.title,
-                    paymentMethod = PaymentMethod.CREDIT_CARD.title,
-                    dateMillis = daysAgo(1, 16),
-                    notes = "Running shoes & socks"
-                ),
-                ExpenseEntity(
-                    amount = 65.00,
-                    category = ExpenseCategory.UTILITIES.title,
-                    paymentMethod = PaymentMethod.DEBIT_CARD.title,
-                    dateMillis = daysAgo(2, 11),
-                    notes = "High-speed Internet Bill"
-                ),
-                ExpenseEntity(
-                    amount = 28.50,
-                    category = ExpenseCategory.FOOD.title,
-                    paymentMethod = PaymentMethod.UPI_ONLINE.title,
-                    dateMillis = daysAgo(3, 13),
-                    notes = "Lunch with colleagues"
-                ),
-                ExpenseEntity(
-                    amount = 24.00,
-                    category = ExpenseCategory.ENTERTAINMENT.title,
-                    paymentMethod = PaymentMethod.CREDIT_CARD.title,
-                    dateMillis = daysAgo(4, 20),
-                    notes = "Cinema tickets"
-                ),
-                ExpenseEntity(
-                    amount = 35.00,
-                    category = ExpenseCategory.HEALTH.title,
-                    paymentMethod = PaymentMethod.DEBIT_CARD.title,
-                    dateMillis = daysAgo(5, 15),
-                    notes = "Vitamin supplements"
-                ),
-                ExpenseEntity(
-                    amount = 120.00,
-                    category = ExpenseCategory.BILLS.title,
-                    paymentMethod = PaymentMethod.UPI_ONLINE.title,
-                    dateMillis = daysAgo(7, 10),
-                    notes = "Electricity & Power bill"
-                ),
-                ExpenseEntity(
-                    amount = 22.00,
-                    category = ExpenseCategory.TRANSPORT.title,
-                    paymentMethod = PaymentMethod.CASH.title,
-                    dateMillis = daysAgo(8, 18),
-                    notes = "Cab ride to airport"
-                ),
-                ExpenseEntity(
-                    amount = 115.00,
-                    category = ExpenseCategory.FOOD.title,
-                    paymentMethod = PaymentMethod.CREDIT_CARD.title,
-                    dateMillis = daysAgo(10, 19),
-                    notes = "Weekly family supermarket"
-                ),
-                ExpenseEntity(
-                    amount = 15.00,
-                    category = ExpenseCategory.MISCELLANEOUS.title,
-                    paymentMethod = PaymentMethod.CASH.title,
-                    dateMillis = daysAgo(12, 14),
-                    notes = "Notebook and desk accessories"
+                RecurringBillEntity(
+                    title = "Gym & Fitness Membership",
+                    amount = 1800.0,
+                    category = "Health",
+                    paymentMethod = "UPI",
+                    billingFrequency = "Monthly",
+                    dueDayOfMonth = 1,
+                    notes = "Monthly fitness club"
                 )
             )
-
-            dao.insertExpenses(sampleExpenses)
+            dao.insertRecurringBills(initialBills)
         }
     }
 }

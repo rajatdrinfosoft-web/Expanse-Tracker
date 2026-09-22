@@ -7,11 +7,11 @@ object CurrencyUtils {
     private val decimalFormat = DecimalFormat("#,##0.00")
     private val compactFormat = DecimalFormat("#,##0")
 
-    fun format(amount: Double, symbol: String = "$"): String {
+    fun format(amount: Double, symbol: String = "₹"): String {
         return "$symbol${decimalFormat.format(amount)}"
     }
 
-    fun formatCompact(amount: Double, symbol: String = "$"): String {
+    fun formatCompact(amount: Double, symbol: String = "₹"): String {
         return "$symbol${compactFormat.format(amount)}"
     }
 }

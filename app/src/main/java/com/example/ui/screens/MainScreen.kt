@@ -18,9 +18,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.EventRepeat
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Dashboard
+import androidx.compose.material.icons.outlined.EventRepeat
 import androidx.compose.material.icons.outlined.PieChart
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.FloatingActionButton
@@ -48,10 +50,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.components.AddExpenseBottomSheet
+import com.example.ui.components.PdfExportDialog
 import com.example.ui.viewmodel.ExpenseViewModel
 
 enum class MainTab(val title: String) {
     DASHBOARD("Dashboard"),
+    SUBSCRIPTIONS("Bills"),
     ANALYTICS("Analytics"),
     SETTINGS("Settings")
 }
@@ -74,120 +78,139 @@ fun MainScreen(
     val dashboardMetrics by viewModel.dashboardMetrics.collectAsStateWithLifecycle()
     val allExpenses by viewModel.allExpenses.collectAsStateWithLifecycle()
     val categoryBudgets by viewModel.categoryBudgets.collectAsStateWithLifecycle()
+    val recurringBills by viewModel.recurringBills.collectAsStateWithLifecycle()
     val analyticsState by viewModel.analyticsState.collectAsStateWithLifecycle()
     val isAddSheetOpen by viewModel.isAddExpenseSheetOpen.collectAsStateWithLifecycle()
     val editingExpense by viewModel.editingExpense.collectAsStateWithLifecycle()
+    val isPdfExportDialogOpen by viewModel.isPdfExportDialogOpen.collectAsStateWithLifecycle()
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { viewModel.openAddExpense() },
+                shape = CircleShape,
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = Color.White,
+                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp),
+                modifier = Modifier
+                    .size(56.dp)
+                    .testTag("fab_add_expense")
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Add Expense",
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+        },
         bottomBar = {
-            Box(
+            NavigationBar(
+                containerColor = MaterialTheme.colorScheme.surface,
+                tonalElevation = 8.dp,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .windowInsetsPadding(WindowInsets.navigationBars),
-                contentAlignment = Alignment.BottomCenter
+                    .shadow(12.dp)
             ) {
-                NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 8.dp,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .shadow(12.dp)
-                ) {
-                    // Tab 0: Dashboard
-                    NavigationBarItem(
-                        selected = selectedTabIndex == 0,
-                        onClick = { selectedTabIndex = 0 },
-                        icon = {
-                            Icon(
-                                imageVector = if (selectedTabIndex == 0) Icons.Default.Dashboard else Icons.Outlined.Dashboard,
-                                contentDescription = "Dashboard"
-                            )
-                        },
-                        label = {
-                            Text(
-                                text = "Dashboard",
-                                fontWeight = if (selectedTabIndex == 0) FontWeight.Bold else FontWeight.Normal,
-                                fontSize = 11.sp
-                            )
-                        },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = MaterialTheme.colorScheme.primary,
-                            selectedTextColor = MaterialTheme.colorScheme.primary,
-                            indicatorColor = MaterialTheme.colorScheme.primaryContainer
-                        ),
-                        modifier = Modifier.testTag("tab_dashboard")
-                    )
+                // Tab 0: Dashboard
+                NavigationBarItem(
+                    selected = selectedTabIndex == 0,
+                    onClick = { selectedTabIndex = 0 },
+                    icon = {
+                        Icon(
+                            imageVector = if (selectedTabIndex == 0) Icons.Default.Dashboard else Icons.Outlined.Dashboard,
+                            contentDescription = "Dashboard"
+                        )
+                    },
+                    label = {
+                        Text(
+                            text = "Dashboard",
+                            fontWeight = if (selectedTabIndex == 0) FontWeight.Bold else FontWeight.Normal,
+                            fontSize = 11.sp
+                        )
+                    },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = MaterialTheme.colorScheme.primary,
+                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                        indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                    ),
+                    modifier = Modifier.testTag("tab_dashboard")
+                )
 
-                    // Tab 1: Analytics
-                    NavigationBarItem(
-                        selected = selectedTabIndex == 1,
-                        onClick = { selectedTabIndex = 1 },
-                        icon = {
-                            Icon(
-                                imageVector = if (selectedTabIndex == 1) Icons.Default.PieChart else Icons.Outlined.PieChart,
-                                contentDescription = "Analytics"
-                            )
-                        },
-                        label = {
-                            Text(
-                                text = "Analytics",
-                                fontWeight = if (selectedTabIndex == 1) FontWeight.Bold else FontWeight.Normal,
-                                fontSize = 11.sp
-                            )
-                        },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = MaterialTheme.colorScheme.primary,
-                            selectedTextColor = MaterialTheme.colorScheme.primary,
-                            indicatorColor = MaterialTheme.colorScheme.primaryContainer
-                        ),
-                        modifier = Modifier.testTag("tab_analytics")
-                    )
+                // Tab 1: Subscriptions & Recurring Bills
+                NavigationBarItem(
+                    selected = selectedTabIndex == 1,
+                    onClick = { selectedTabIndex = 1 },
+                    icon = {
+                        Icon(
+                            imageVector = if (selectedTabIndex == 1) Icons.Default.EventRepeat else Icons.Outlined.EventRepeat,
+                            contentDescription = "Bills"
+                        )
+                    },
+                    label = {
+                        Text(
+                            text = "Bills",
+                            fontWeight = if (selectedTabIndex == 1) FontWeight.Bold else FontWeight.Normal,
+                            fontSize = 11.sp
+                        )
+                    },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = MaterialTheme.colorScheme.primary,
+                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                        indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                    ),
+                    modifier = Modifier.testTag("tab_subscriptions")
+                )
 
-                    // Tab 2: Settings
-                    NavigationBarItem(
-                        selected = selectedTabIndex == 2,
-                        onClick = { selectedTabIndex = 2 },
-                        icon = {
-                            Icon(
-                                imageVector = if (selectedTabIndex == 2) Icons.Default.Settings else Icons.Outlined.Settings,
-                                contentDescription = "Settings"
-                            )
-                        },
-                        label = {
-                            Text(
-                                text = "Settings",
-                                fontWeight = if (selectedTabIndex == 2) FontWeight.Bold else FontWeight.Normal,
-                                fontSize = 11.sp
-                            )
-                        },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = MaterialTheme.colorScheme.primary,
-                            selectedTextColor = MaterialTheme.colorScheme.primary,
-                            indicatorColor = MaterialTheme.colorScheme.primaryContainer
-                        ),
-                        modifier = Modifier.testTag("tab_settings")
-                    )
-                }
+                // Tab 2: Analytics
+                NavigationBarItem(
+                    selected = selectedTabIndex == 2,
+                    onClick = { selectedTabIndex = 2 },
+                    icon = {
+                        Icon(
+                            imageVector = if (selectedTabIndex == 2) Icons.Default.PieChart else Icons.Outlined.PieChart,
+                            contentDescription = "Analytics"
+                        )
+                    },
+                    label = {
+                        Text(
+                            text = "Analytics",
+                            fontWeight = if (selectedTabIndex == 2) FontWeight.Bold else FontWeight.Normal,
+                            fontSize = 11.sp
+                        )
+                    },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = MaterialTheme.colorScheme.primary,
+                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                        indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                    ),
+                    modifier = Modifier.testTag("tab_analytics")
+                )
 
-                // Floating "+" Add Expense Button positioned over bottom bar
-                FloatingActionButton(
-                    onClick = { viewModel.openAddExpense() },
-                    shape = CircleShape,
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = Color.White,
-                    elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp),
-                    modifier = Modifier
-                        .offset(y = (-42).dp)
-                        .size(56.dp)
-                        .testTag("fab_add_expense")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Add Expense",
-                        modifier = Modifier.size(28.dp)
-                    )
-                }
+                // Tab 3: Settings
+                NavigationBarItem(
+                    selected = selectedTabIndex == 3,
+                    onClick = { selectedTabIndex = 3 },
+                    icon = {
+                        Icon(
+                            imageVector = if (selectedTabIndex == 3) Icons.Default.Settings else Icons.Outlined.Settings,
+                            contentDescription = "Settings"
+                        )
+                    },
+                    label = {
+                        Text(
+                            text = "Settings",
+                            fontWeight = if (selectedTabIndex == 3) FontWeight.Bold else FontWeight.Normal,
+                            fontSize = 11.sp
+                        )
+                    },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = MaterialTheme.colorScheme.primary,
+                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                        indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                    ),
+                    modifier = Modifier.testTag("tab_settings")
+                )
             }
         }
     ) { innerPadding ->
@@ -210,16 +233,22 @@ fun MainScreen(
                         onExpenseClick = { expense -> viewModel.openAddExpense(expense) },
                         onDeleteExpense = { expense -> viewModel.deleteExpense(expense) }
                     )
-                    1 -> AnalyticsScreen(
+                    1 -> SubscriptionsScreen(
+                        viewModel = viewModel,
+                        recurringBills = recurringBills,
+                        currencySymbol = dashboardMetrics.currencySymbol
+                    )
+                    2 -> AnalyticsScreen(
                         state = analyticsState,
                         currencySymbol = dashboardMetrics.currencySymbol,
                         onDateFilterSelected = { viewModel.setDateFilter(it) },
                         onCategoryFilterSelected = { viewModel.setCategoryFilter(it) },
                         onSearchQueryChanged = { viewModel.setSearchQuery(it) },
                         onExpenseClick = { expense -> viewModel.openAddExpense(expense) },
-                        onDeleteExpense = { expense -> viewModel.deleteExpense(expense) }
+                        onDeleteExpense = { expense -> viewModel.deleteExpense(expense) },
+                        onExportPdfClick = { viewModel.openPdfExportDialog() }
                     )
-                    2 -> SettingsScreen(
+                    3 -> SettingsScreen(
                         monthlyBudget = dashboardMetrics.monthlyBudget,
                         currencySymbol = dashboardMetrics.currencySymbol,
                         categoryBudgets = categoryBudgets,
@@ -227,7 +256,8 @@ fun MainScreen(
                         onUpdateMonthlyBudget = { viewModel.updateMonthlyBudget(it) },
                         onUpdateCurrencySymbol = { viewModel.updateCurrencySymbol(it) },
                         onUpdateCategoryBudget = { cat, limit -> viewModel.updateCategoryBudget(cat, limit) },
-                        onResetData = { viewModel.resetData() }
+                        onClearAllExpenses = { viewModel.clearAllExpenses() },
+                        onExportPdfClick = { viewModel.openPdfExportDialog() }
                     )
                 }
             }
@@ -242,6 +272,14 @@ fun MainScreen(
             onSave = { amount, category, paymentMethod, dateMillis, notes ->
                 viewModel.saveExpense(amount, category, paymentMethod, dateMillis, notes)
             }
+        )
+
+        // Professional PDF Export Dialog with Date Range Selection
+        PdfExportDialog(
+            isOpen = isPdfExportDialogOpen,
+            onDismiss = { viewModel.closePdfExportDialog() },
+            allExpenses = allExpenses,
+            currencySymbol = dashboardMetrics.currencySymbol
         )
     }
 }

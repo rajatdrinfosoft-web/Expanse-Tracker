@@ -20,9 +20,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Backspace
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
@@ -34,10 +34,12 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -46,10 +48,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -89,7 +95,13 @@ fun AddExpenseBottomSheet(
     var notes by remember(editingExpense) {
         mutableStateOf(editingExpense?.notes ?: "")
     }
-    var showNumericKeypad by remember { mutableStateOf(true) }
+    val amountFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(isOpen) {
+        if (isOpen) {
+            amountFocusRequester.requestFocus()
+        }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -127,37 +139,68 @@ fun AddExpenseBottomSheet(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Amount Display Box
-            Box(
+            // Amount Input Field - Uses Mobile Device's Native Keyboard Numpad
+            OutlinedTextField(
+                value = amountString,
+                onValueChange = { input ->
+                    val filtered = input.filter { it.isDigit() || it == '.' }
+                    val parts = filtered.split(".")
+                    if (parts.size <= 2 && (parts.size == 1 || parts[1].length <= 2)) {
+                        amountString = filtered
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
-                    .clickable { showNumericKeypad = !showNumericKeypad }
-                    .padding(vertical = 18.dp, horizontal = 20.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                    .focusRequester(amountFocusRequester)
+                    .testTag("text_input_amount"),
+                textStyle = MaterialTheme.typography.headlineMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 30.sp
+                ),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Decimal,
+                    imeAction = ImeAction.Next
+                ),
+                leadingIcon = {
                     Text(
                         text = currencySymbol,
                         style = MaterialTheme.typography.headlineMedium.copy(
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.ExtraBold,
                             color = MaterialTheme.colorScheme.primary
+                        ),
+                        modifier = Modifier.padding(start = 12.dp, end = 4.dp)
+                    )
+                },
+                trailingIcon = {
+                    if (amountString.isNotEmpty()) {
+                        IconButton(onClick = { amountString = "" }) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Clear",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                },
+                placeholder = {
+                    Text(
+                        text = "0.00",
+                        style = MaterialTheme.typography.headlineMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 30.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                         )
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = if (amountString.isEmpty()) "0.00" else amountString,
-                        style = MaterialTheme.typography.headlineLarge.copy(
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 38.sp,
-                            color = if (amountString.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onSurface
-                        ),
-                        maxLines = 1,
-                        modifier = Modifier.testTag("text_input_amount")
-                    )
-                }
-            }
+                },
+                shape = RoundedCornerShape(16.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                )
+            )
 
             // Quick Amount Add Pills
             Spacer(modifier = Modifier.height(10.dp))
@@ -167,7 +210,7 @@ fun AddExpenseBottomSheet(
                     .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                listOf(5, 10, 20, 50, 100).forEach { addVal ->
+                listOf(50, 100, 200, 500, 1000).forEach { addVal ->
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(20.dp))
@@ -187,34 +230,6 @@ fun AddExpenseBottomSheet(
                         )
                     }
                 }
-            }
-
-            // Built-in Fast Numeric Keypad
-            if (showNumericKeypad) {
-                Spacer(modifier = Modifier.height(12.dp))
-                NumericKeypad(
-                    onDigitClick = { digit ->
-                        if (digit == ".") {
-                            if (!amountString.contains(".")) {
-                                amountString = if (amountString.isEmpty()) "0." else "$amountString."
-                            }
-                        } else {
-                            // Max 2 decimal digits
-                            val parts = amountString.split(".")
-                            if (parts.size <= 1 || parts[1].length < 2) {
-                                amountString += digit
-                            }
-                        }
-                    },
-                    onBackspace = {
-                        if (amountString.isNotEmpty()) {
-                            amountString = amountString.dropLast(1)
-                        }
-                    },
-                    onClear = {
-                        amountString = ""
-                    }
-                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -450,72 +465,6 @@ fun AddExpenseBottomSheet(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
-            }
-        }
-    }
-}
-
-@Composable
-fun NumericKeypad(
-    onDigitClick: (String) -> Unit,
-    onBackspace: () -> Unit,
-    onClear: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val keys = listOf(
-        listOf("1", "2", "3"),
-        listOf("4", "5", "6"),
-        listOf("7", "8", "9"),
-        listOf(".", "0", "DEL")
-    )
-
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
-            .padding(6.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        keys.forEach { row ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                row.forEach { key ->
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(44.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(MaterialTheme.colorScheme.surface)
-                            .clickable {
-                                when (key) {
-                                    "DEL" -> onBackspace()
-                                    else -> onDigitClick(key)
-                                }
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (key == "DEL") {
-                            Icon(
-                                imageVector = Icons.Default.Backspace,
-                                contentDescription = "Backspace",
-                                tint = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        } else {
-                            Text(
-                                text = key,
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 18.sp
-                                ),
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
-                }
             }
         }
     }

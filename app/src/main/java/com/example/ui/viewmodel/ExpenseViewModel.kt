@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Calendar
@@ -51,9 +52,9 @@ data class DashboardMetrics(
     val todaySpend: Double = 0.0,
     val remainingMonthlyBudget: Double = 0.0,
     val dailyAverage: Double = 0.0,
-    val monthlyBudget: Double = 2500.0,
+    val monthlyBudget: Double = 0.0,
     val budgetPercentUsed: Float = 0f,
-    val currencySymbol: String = "$",
+    val currencySymbol: String = "₹",
     val warnings: List<CategoryBudgetWarning> = emptyList()
 )
 
@@ -78,6 +79,12 @@ class ExpenseViewModel(private val repository: ExpenseRepository) : ViewModel() 
     val userSettings: StateFlow<UserSettingsEntity?> = repository.userSettings
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
+    val recurringBills: StateFlow<List<com.example.data.model.RecurringBillEntity>> = repository.allRecurringBills
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // PDF Export Dialog State
+    val isPdfExportDialogOpen = MutableStateFlow(false)
+
     // Analytics filter state
     val selectedDateFilter = MutableStateFlow(DateRangeFilter.THIS_MONTH)
     val selectedCategoryFilter = MutableStateFlow<String?>(null)
@@ -87,14 +94,30 @@ class ExpenseViewModel(private val repository: ExpenseRepository) : ViewModel() 
     val isAddExpenseSheetOpen = MutableStateFlow(false)
     val editingExpense = MutableStateFlow<ExpenseEntity?>(null)
 
+    init {
+        viewModelScope.launch {
+            repository.removeDemoExpenses()
+            repository.userSettings.firstOrNull()?.let { current ->
+                if (current.currencySymbol == "$" || current.monthlyBudget == 2500.0) {
+                    repository.updateUserSettings(
+                        current.copy(
+                            currencySymbol = if (current.currencySymbol == "$") "₹" else current.currencySymbol,
+                            monthlyBudget = if (current.monthlyBudget == 2500.0) 0.0 else current.monthlyBudget
+                        )
+                    )
+                }
+            }
+        }
+    }
+
     // Combined Dashboard Metrics
     val dashboardMetrics: StateFlow<DashboardMetrics> = combine(
         allExpenses,
         categoryBudgets,
         userSettings
     ) { expenses, budgets, settings ->
-        val currency = settings?.currencySymbol ?: "$"
-        val monthlyBudget = settings?.monthlyBudget ?: 2500.0
+        val currency = settings?.currencySymbol ?: "₹"
+        val monthlyBudget = settings?.monthlyBudget ?: 0.0
 
         val startOfMonth = DateUtils.getStartOfMonth()
         val endOfMonth = DateUtils.getEndOfMonth()
@@ -319,10 +342,60 @@ class ExpenseViewModel(private val repository: ExpenseRepository) : ViewModel() 
         }
     }
 
-    fun resetData() {
+    fun clearAllExpenses() {
         viewModelScope.launch {
             repository.deleteAllExpenses()
-            repository.populateSampleData()
+        }
+    }
+
+    // PDF Export Dialog Controls
+    fun openPdfExportDialog() {
+        isPdfExportDialogOpen.value = true
+    }
+
+    fun closePdfExportDialog() {
+        isPdfExportDialogOpen.value = false
+    }
+
+    // Recurring Bills Controls
+    fun saveRecurringBill(
+        id: Long = 0,
+        title: String,
+        amount: Double,
+        category: String,
+        paymentMethod: String = "UPI",
+        billingFrequency: String = "Monthly",
+        dueDayOfMonth: Int = 1,
+        notes: String = ""
+    ) {
+        viewModelScope.launch {
+            val bill = com.example.data.model.RecurringBillEntity(
+                id = id,
+                title = title.trim(),
+                amount = amount,
+                category = category,
+                paymentMethod = paymentMethod,
+                billingFrequency = billingFrequency,
+                dueDayOfMonth = dueDayOfMonth.coerceIn(1, 31),
+                notes = notes.trim()
+            )
+            if (id > 0) {
+                repository.updateRecurringBill(bill)
+            } else {
+                repository.insertRecurringBill(bill)
+            }
+        }
+    }
+
+    fun deleteRecurringBill(bill: com.example.data.model.RecurringBillEntity) {
+        viewModelScope.launch {
+            repository.deleteRecurringBill(bill)
+        }
+    }
+
+    fun markBillAsPaid(bill: com.example.data.model.RecurringBillEntity) {
+        viewModelScope.launch {
+            repository.logBillAsPaid(bill)
         }
     }
 }
