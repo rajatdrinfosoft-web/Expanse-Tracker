@@ -63,6 +63,15 @@ android {
   }
 }
 
+tasks.register<Copy>("copyDebugApk") {
+  dependsOn("assembleDebug")
+  from(layout.buildDirectory.dir("outputs/apk/debug")) {
+    include("app-debug.apk")
+  }
+  into(rootProject.layout.projectDirectory.dir("apk"))
+  rename("app-debug.apk", "expansetracker.apk")
+}
+
 // Configure the Secrets Gradle Plugin to use .env and .env.example files
 // to match the convention used in Web projects.
 secrets {
