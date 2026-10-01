@@ -91,4 +91,13 @@ class ExpenseRepository(private val expenseDao: ExpenseDao) {
     suspend fun deleteAllExpenses() {
         expenseDao.deleteAllExpenses()
     }
+
+    suspend fun restoreBackupData(expenses: List<ExpenseEntity>, bills: List<RecurringBillEntity>) {
+        if (expenses.isNotEmpty()) {
+            expenseDao.insertExpenses(expenses)
+        }
+        if (bills.isNotEmpty()) {
+            expenseDao.insertRecurringBills(bills)
+        }
+    }
 }

@@ -41,16 +41,18 @@ import com.example.util.CurrencyUtils
 fun SpendingBarChart(
     trends: List<DailySpendingTrend>,
     currencySymbol: String,
+    title: String = "Spending Trend",
+    subtitle: String = "Distribution over selected period",
     modifier: Modifier = Modifier
 ) {
-    var selectedDayIndex by remember { mutableStateOf<Int?>(null) }
+    var selectedIndex by remember { mutableStateOf<Int?>(null) }
 
     val maxSpend = remember(trends) {
         val max = trends.maxOfOrNull { it.amount } ?: 0.0
         if (max > 0) max else 100.0
     }
 
-    val totalWeeklySpend = remember(trends) {
+    val totalTrendSpend = remember(trends) {
         trends.sumOf { it.amount }
     }
 
@@ -70,31 +72,31 @@ fun SpendingBarChart(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Daily Spending Trend",
+                        text = title,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "Last 7 days",
+                        text = subtitle,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
-                // Total 7-day spend badge
+                // Total Period Spend Badge
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        text = CurrencyUtils.format(totalWeeklySpend, currencySymbol),
+                        text = CurrencyUtils.format(totalTrendSpend, currencySymbol),
                         style = MaterialTheme.typography.titleSmall.copy(
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
                         )
                     )
                     Text(
-                        text = "7-Day Total",
+                        text = "Period Total",
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -103,102 +105,120 @@ fun SpendingBarChart(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Bar Chart Area
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(150.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.Bottom
-            ) {
-                trends.forEachIndexed { index, item ->
-                    val fraction = if (maxSpend > 0) (item.amount / maxSpend).toFloat().coerceIn(0.04f, 1f) else 0.04f
-                    val animatedHeight by animateFloatAsState(
-                        targetValue = fraction,
-                        animationSpec = tween(durationMillis = 600 + index * 60),
-                        label = "bar_anim_$index"
+            if (trends.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(130.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No spending trends available for this timeframe",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                }
+            } else {
+                // Bar Chart Area
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(150.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.Bottom
+                ) {
+                    trends.forEachIndexed { index, item ->
+                        val fraction = if (maxSpend > 0) (item.amount / maxSpend).toFloat().coerceIn(0.04f, 1f) else 0.04f
+                        val animatedHeight by animateFloatAsState(
+                            targetValue = fraction,
+                            animationSpec = tween(durationMillis = 500 + index * 50),
+                            label = "bar_anim_$index"
+                        )
 
-                    val isSelected = selectedDayIndex == index || (selectedDayIndex == null && item.isToday)
-                    val barColor = when {
-                        item.isToday -> MaterialTheme.colorScheme.primary
-                        isSelected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
-                        item.amount > 0 -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f)
-                        else -> MaterialTheme.colorScheme.surfaceVariant
-                    }
+                        val isSelected = selectedIndex == index || (selectedIndex == null && item.isToday)
+                        val barColor = when {
+                            item.isToday -> MaterialTheme.colorScheme.primary
+                            isSelected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
+                            item.isPeak -> MaterialTheme.colorScheme.tertiary
+                            item.amount > 0 -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.65f)
+                            else -> MaterialTheme.colorScheme.surfaceVariant
+                        }
 
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .clickable {
-                                selectedDayIndex = if (selectedDayIndex == index) null else index
-                            },
-                        verticalArrangement = Arrangement.Bottom
-                    ) {
-                        // Amount Tooltip on tap or for highest
-                        if (selectedDayIndex == index) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .clickable {
+                                    selectedIndex = if (selectedIndex == index) null else index
+                                },
+                            verticalArrangement = Arrangement.Bottom
+                        ) {
+                            // Amount Tooltip on tap
+                            if (selectedIndex == index) {
+                                Text(
+                                    text = CurrencyUtils.formatCompact(item.amount, currencySymbol),
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    maxLines = 1,
+                                    textAlign = TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                            }
+
+                            // The Bar
+                            Box(
+                                modifier = Modifier
+                                    .width(22.dp)
+                                    .fillMaxHeight(animatedHeight)
+                                    .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
+                                    .background(barColor)
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // Day or Week label
                             Text(
-                                text = CurrencyUtils.formatCompact(item.amount, currencySymbol),
+                                text = item.dayLabel,
                                 style = MaterialTheme.typography.labelSmall.copy(
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold
+                                    fontSize = 10.5.sp,
+                                    fontWeight = if (item.isToday || isSelected) FontWeight.Bold else FontWeight.Normal
                                 ),
-                                color = MaterialTheme.colorScheme.primary,
+                                color = if (item.isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
                                 textAlign = TextAlign.Center
                             )
-                            Spacer(modifier = Modifier.height(4.dp))
-                        }
 
-                        // The Bar
-                        Box(
-                            modifier = Modifier
-                                .width(22.dp)
-                                .fillMaxHeight(animatedHeight)
-                                .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
-                                .background(barColor)
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        // Day label (Mon, Tue, etc.)
-                        Text(
-                            text = item.dayLabel,
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontSize = 11.sp,
-                                fontWeight = if (item.isToday) FontWeight.Bold else FontWeight.Normal
-                            ),
-                            color = if (item.isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        // Indicator dot for today
-                        if (item.isToday) {
-                            Box(
-                                modifier = Modifier
-                                    .padding(top = 2.dp)
-                                    .size(4.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primary)
-                            )
-                        } else {
-                            Spacer(modifier = Modifier.height(6.dp))
+                            // Indicator dot for today or peak
+                            if (item.isToday) {
+                                Box(
+                                    modifier = Modifier
+                                        .padding(top = 2.dp)
+                                        .size(4.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.primary)
+                                )
+                            } else {
+                                Spacer(modifier = Modifier.height(6.dp))
+                            }
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Tap hint
+                Text(
+                    text = "Tap any bar to inspect amount",
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Tap hint
-            Text(
-                text = "Tap any bar to view individual daily spend",
-                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
-            )
         }
     }
 }

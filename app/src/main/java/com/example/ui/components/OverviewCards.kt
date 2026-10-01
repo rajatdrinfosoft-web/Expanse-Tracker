@@ -10,11 +10,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.AutoGraph
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material.icons.filled.TrendingUp
@@ -54,15 +54,20 @@ fun OverviewCards(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Row 1: Total Spent This Month & Remaining Monthly Budget
+        // Row 1: Total Spent This Month & (Remaining Budget OR Projected Month Spend)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // Card 1: Spent This Month
             MetricCard(
                 title = "Spent This Month",
                 amountStr = CurrencyUtils.format(metrics.totalSpentThisMonth, metrics.currencySymbol),
-                subtitle = if (metrics.monthlyBudget > 0) "of ${CurrencyUtils.formatCompact(metrics.monthlyBudget, metrics.currencySymbol)} budget" else "No monthly limit set",
+                subtitle = if (metrics.isBudgetSet) {
+                    "of ${CurrencyUtils.formatCompact(metrics.monthlyBudget, metrics.currencySymbol)} budget"
+                } else {
+                    "${metrics.thisMonthExpenseCount} transactions logged"
+                },
                 icon = Icons.Default.AccountBalanceWallet,
                 iconTint = MaterialTheme.colorScheme.primary,
                 iconBg = MaterialTheme.colorScheme.primaryContainer,
@@ -71,18 +76,38 @@ fun OverviewCards(
                     .testTag("card_total_spent")
             )
 
-            MetricCard(
-                title = "Remaining Budget",
-                amountStr = if (metrics.monthlyBudget > 0) CurrencyUtils.format(metrics.remainingMonthlyBudget.coerceAtLeast(0.0), metrics.currencySymbol) else "—",
-                subtitle = if (metrics.monthlyBudget <= 0) "Configure in Settings" else if (metrics.remainingMonthlyBudget < 0) "Over by ${CurrencyUtils.format(-metrics.remainingMonthlyBudget, metrics.currencySymbol)}" else "${(100f - metrics.budgetPercentUsed).coerceAtLeast(0f).toInt()}% left",
-                icon = Icons.Default.TrendingUp,
-                iconTint = remainingColor,
-                iconBg = remainingColor.copy(alpha = 0.12f),
-                amountColor = remainingColor,
-                modifier = Modifier
-                    .weight(1f)
-                    .testTag("card_remaining_budget")
-            )
+            // Card 2: Remaining Budget (if set) OR Projected Spend (if budget optional/not set)
+            if (metrics.isBudgetSet) {
+                MetricCard(
+                    title = "Remaining Budget",
+                    amountStr = CurrencyUtils.format(metrics.remainingMonthlyBudget.coerceAtLeast(0.0), metrics.currencySymbol),
+                    subtitle = if (metrics.remainingMonthlyBudget < 0) {
+                        "Over by ${CurrencyUtils.format(-metrics.remainingMonthlyBudget, metrics.currencySymbol)}"
+                    } else {
+                        "${(100f - metrics.budgetPercentUsed).coerceAtLeast(0f).toInt()}% remaining"
+                    },
+                    icon = Icons.Default.TrendingUp,
+                    iconTint = remainingColor,
+                    iconBg = remainingColor.copy(alpha = 0.12f),
+                    amountColor = remainingColor,
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("card_remaining_budget")
+                )
+            } else {
+                MetricCard(
+                    title = "Projected Spend",
+                    amountStr = CurrencyUtils.format(metrics.projectedMonthlySpend, metrics.currencySymbol),
+                    subtitle = "Paced at ${CurrencyUtils.formatCompact(metrics.dailyAverage, metrics.currencySymbol)}/day",
+                    icon = Icons.Default.AutoGraph,
+                    iconTint = Color(0xFF0D9488),
+                    iconBg = Color(0xFFCCFBF1),
+                    amountColor = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("card_projected_spend")
+                )
+            }
         }
 
         // Row 2: Today's Spend & Daily Average
@@ -93,7 +118,7 @@ fun OverviewCards(
             MetricCard(
                 title = "Today's Spend",
                 amountStr = CurrencyUtils.format(metrics.todaySpend, metrics.currencySymbol),
-                subtitle = "Logged today",
+                subtitle = if (metrics.todayExpenseCount > 0) "${metrics.todayExpenseCount} logged today" else "No expenses today",
                 icon = Icons.Default.CalendarToday,
                 iconTint = Color(0xFF0284C7),
                 iconBg = Color(0xFFE0F2FE),
@@ -105,7 +130,7 @@ fun OverviewCards(
             MetricCard(
                 title = "Daily Average",
                 amountStr = CurrencyUtils.format(metrics.dailyAverage, metrics.currencySymbol),
-                subtitle = "Month to date",
+                subtitle = "Month to date (${metrics.daysElapsed}d)",
                 icon = Icons.Default.ShowChart,
                 iconTint = Color(0xFF7C3AED),
                 iconBg = Color(0xFFEDE9FE),

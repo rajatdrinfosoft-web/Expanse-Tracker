@@ -43,6 +43,7 @@ fun DashboardScreen(
     onAddExpenseClick: () -> Unit,
     onExpenseClick: (ExpenseEntity) -> Unit,
     onDeleteExpense: (ExpenseEntity) -> Unit,
+    onSetBudgetClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -87,9 +88,12 @@ fun DashboardScreen(
             OverviewCards(metrics = metrics)
         }
 
-        // Budget Progress Bar & Warning Indicators
+        // Budget Progress Bar & Spending Intelligence Section
         item(key = "budget_progress") {
-            BudgetProgressBar(metrics = metrics)
+            BudgetProgressBar(
+                metrics = metrics,
+                onSetBudgetClick = onSetBudgetClick
+            )
         }
 
         // Recent Transactions Section Header

@@ -231,7 +231,8 @@ fun MainScreen(
                         recentExpenses = allExpenses,
                         onAddExpenseClick = { viewModel.openAddExpense() },
                         onExpenseClick = { expense -> viewModel.openAddExpense(expense) },
-                        onDeleteExpense = { expense -> viewModel.deleteExpense(expense) }
+                        onDeleteExpense = { expense -> viewModel.deleteExpense(expense) },
+                        onSetBudgetClick = { selectedTabIndex = 3 }
                     )
                     1 -> SubscriptionsScreen(
                         viewModel = viewModel,
@@ -242,6 +243,10 @@ fun MainScreen(
                         state = analyticsState,
                         currencySymbol = dashboardMetrics.currencySymbol,
                         onDateFilterSelected = { viewModel.setDateFilter(it) },
+                        onPreviousMonthClick = { viewModel.selectPreviousMonth() },
+                        onNextMonthClick = { viewModel.selectNextMonth() },
+                        onSpecificMonthSelected = { y, m -> viewModel.setSpecificMonth(y, m) },
+                        onCustomRangeSelected = { s, e -> viewModel.setCustomRange(s, e) },
                         onCategoryFilterSelected = { viewModel.setCategoryFilter(it) },
                         onSearchQueryChanged = { viewModel.setSearchQuery(it) },
                         onExpenseClick = { expense -> viewModel.openAddExpense(expense) },
@@ -253,9 +258,13 @@ fun MainScreen(
                         currencySymbol = dashboardMetrics.currencySymbol,
                         categoryBudgets = categoryBudgets,
                         allExpenses = allExpenses,
+                        recurringBills = recurringBills,
                         onUpdateMonthlyBudget = { viewModel.updateMonthlyBudget(it) },
                         onUpdateCurrencySymbol = { viewModel.updateCurrencySymbol(it) },
                         onUpdateCategoryBudget = { cat, limit -> viewModel.updateCategoryBudget(cat, limit) },
+                        onRestoreBackup = { expList, billList ->
+                            viewModel.restoreBackupData(expList, billList) {}
+                        },
                         onClearAllExpenses = { viewModel.clearAllExpenses() },
                         onExportPdfClick = { viewModel.openPdfExportDialog() }
                     )

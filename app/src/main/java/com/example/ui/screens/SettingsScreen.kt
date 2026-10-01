@@ -27,15 +27,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Alarm
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.filled.WarningAmber
+import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -67,12 +66,11 @@ import androidx.compose.ui.unit.sp
 import com.example.data.model.CategoryBudgetEntity
 import com.example.data.model.ExpenseCategory
 import com.example.data.model.ExpenseEntity
+import com.example.data.model.RecurringBillEntity
 import com.example.ui.theme.StatusAmber
-import com.example.ui.theme.StatusAmberBg
 import com.example.ui.theme.StatusGreen
-import com.example.ui.theme.StatusGreenBg
 import com.example.ui.theme.StatusRed
-import com.example.ui.theme.StatusRedBg
+import com.example.util.BackupManager
 import com.example.util.CurrencyUtils
 import com.example.util.DailyReminderManager
 import com.example.util.DateUtils
@@ -83,9 +81,11 @@ fun SettingsScreen(
     currencySymbol: String,
     categoryBudgets: List<CategoryBudgetEntity>,
     allExpenses: List<ExpenseEntity>,
+    recurringBills: List<RecurringBillEntity> = emptyList(),
     onUpdateMonthlyBudget: (Double) -> Unit,
     onUpdateCurrencySymbol: (String) -> Unit,
     onUpdateCategoryBudget: (categoryName: String, limit: Double) -> Unit,
+    onRestoreBackup: (List<ExpenseEntity>, List<RecurringBillEntity>) -> Unit = { _, _ -> },
     onClearAllExpenses: () -> Unit,
     onExportPdfClick: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -93,12 +93,10 @@ fun SettingsScreen(
     val context = LocalContext.current
     var showMonthlyBudgetDialog by remember { mutableStateOf(false) }
     var showClearConfirmDialog by remember { mutableStateOf(false) }
+    var showRestoreDialog by remember { mutableStateOf(false) }
 
     // Daily Reminder State
     var isReminderActive by remember { mutableStateOf(DailyReminderManager.isReminderEnabled(context)) }
-    val (savedHour, savedMinute) = remember { DailyReminderManager.getReminderTime(context) }
-    var reminderHour by remember { mutableIntStateOf(savedHour) }
-    var reminderMinute by remember { mutableIntStateOf(savedMinute) }
 
     // Notification Permission Launcher (Android 13+)
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
@@ -146,7 +144,7 @@ fun SettingsScreen(
         item(key = "title") {
             Column {
                 Text(
-                    text = "Budget & Settings",
+                    text = "Preferences & Settings",
                     style = MaterialTheme.typography.headlineMedium.copy(
                         fontWeight = FontWeight.ExtraBold,
                         letterSpacing = (-0.5).sp
@@ -154,14 +152,14 @@ fun SettingsScreen(
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 Text(
-                    text = "Set your monthly spending limit • Category results calculate automatically",
+                    text = "Spending limit is optional • Category insights calculate automatically",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
 
-        // Overall Monthly Budget Target Card
+        // Overall Monthly Budget Target Card (Optional)
         item(key = "overall_budget_card") {
             Card(
                 modifier = Modifier
@@ -203,7 +201,7 @@ fun SettingsScreen(
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "Tap to edit target limit",
+                                text = if (monthlyBudget > 0) "Tap to edit or remove target limit" else "Optional — Tap to set a spending goal",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -212,10 +210,10 @@ fun SettingsScreen(
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = CurrencyUtils.formatCompact(monthlyBudget, currencySymbol),
-                            style = MaterialTheme.typography.titleLarge.copy(
+                            text = if (monthlyBudget > 0) CurrencyUtils.formatCompact(monthlyBudget, currencySymbol) else "Not Set",
+                            style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
+                                color = if (monthlyBudget > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         )
                         Spacer(modifier = Modifier.width(6.dp))
@@ -299,7 +297,7 @@ fun SettingsScreen(
             }
         }
 
-        // Category Spending Result Cards List (Dynamic breakdown based on spending)
+        // Category Spending Result Cards List (Dynamic proportion of monthly expenditure)
         items(
             items = ExpenseCategory.allCategories,
             key = { "cat_spend_${it.title}" }
@@ -307,7 +305,7 @@ fun SettingsScreen(
             val spent = categorySpendingMap[category.title] ?: 0.0
             // Share of total monthly spending
             val shareOfSpent = if (totalThisMonth > 0) ((spent / totalThisMonth) * 100).toFloat() else 0f
-            // Share of overall monthly budget limit
+            // Share of overall monthly budget limit (if set)
             val shareOfBudget = if (monthlyBudget > 0) ((spent / monthlyBudget) * 100).toFloat() else 0f
 
             Card(
@@ -346,7 +344,7 @@ fun SettingsScreen(
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = if (totalThisMonth > 0) "${shareOfSpent.toInt()}% of total spend" else "No expenses yet",
+                                    text = if (totalThisMonth > 0) "${shareOfSpent.toInt()}% of total spend" else "No expenses this month",
                                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -363,18 +361,26 @@ fun SettingsScreen(
                                 ),
                                 color = if (spent > 0) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                             )
-                            Text(
-                                text = "${shareOfBudget.toInt()}% of monthly limit",
-                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.5.sp),
-                                color = if (shareOfBudget >= 50f) StatusAmber else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            if (monthlyBudget > 0) {
+                                Text(
+                                    text = "${shareOfBudget.toInt()}% of limit",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.5.sp),
+                                    color = if (shareOfBudget >= 50f) StatusAmber else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            } else {
+                                Text(
+                                    text = "${shareOfSpent.toInt()}% share",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.5.sp),
+                                    color = category.color
+                                )
+                            }
                         }
                     }
 
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    // Progress Bar indicating proportion of monthly limit used by this category
-                    val fraction = (shareOfBudget / 100f).coerceIn(0f, 1f)
+                    // Progress Bar indicating proportion of monthly expenses used by this category
+                    val fraction = (shareOfSpent / 100f).coerceIn(0f, 1f)
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -384,7 +390,7 @@ fun SettingsScreen(
                     ) {
                         Box(
                             modifier = Modifier
-                                .fillMaxWidth(fraction)
+                                .fillMaxWidth(if (spent > 0) fraction.coerceAtLeast(0.02f) else 0f)
                                 .fillMaxHeight()
                                 .clip(RoundedCornerShape(3.dp))
                                 .background(category.color)
@@ -558,6 +564,89 @@ fun SettingsScreen(
             }
         }
 
+        // Data Backup & Restore Section (Preserve your data across updates)
+        item(key = "data_backup_restore") {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primaryContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CloudSync,
+                                contentDescription = "Backup",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = "Data Backup & Migration",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Export JSON backup to preserve your 5+ days data safely",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                val file = BackupManager.generateAndShareBackup(
+                                    context = context,
+                                    expenses = allExpenses,
+                                    recurringBills = recurringBills,
+                                    currencySymbol = currencySymbol,
+                                    monthlyBudget = monthlyBudget
+                                )
+                                if (file != null) {
+                                    Toast.makeText(context, "Backup file generated (${allExpenses.size} items)!", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, "Failed to create backup", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Default.Download, contentDescription = "Export", modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Export Backup", fontWeight = FontWeight.Bold)
+                        }
+
+                        OutlinedButton(
+                            onClick = { showRestoreDialog = true },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Default.Upload, contentDescription = "Restore", modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Restore", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+
         // Data Management Section
         item(key = "data_management") {
             Card(
@@ -643,34 +732,56 @@ fun SettingsScreen(
         }
     }
 
-    // Dialog: Edit Monthly Budget Target
+    // Dialog: Edit Monthly Budget Target (Allows setting, changing, or disabling limit)
     if (showMonthlyBudgetDialog) {
-        var newAmountStr by remember { mutableStateOf(monthlyBudget.toInt().toString()) }
+        var newAmountStr by remember {
+            mutableStateOf(if (monthlyBudget > 0) monthlyBudget.toInt().toString() else "")
+        }
         AlertDialog(
             onDismissRequest = { showMonthlyBudgetDialog = false },
-            title = { Text("Set Monthly Spending Limit") },
+            title = { Text("Monthly Spending Limit") },
             text = {
                 Column {
-                    Text("Enter your overall monthly spent limit:")
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Set an optional monthly target to monitor budget progress. You can remove it anytime.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
                     OutlinedTextField(
                         value = newAmountStr,
                         onValueChange = { newAmountStr = it.filter { char -> char.isDigit() || char == '.' } },
                         prefix = { Text(currencySymbol) },
+                        placeholder = { Text("e.g. 25000") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
+                    if (monthlyBudget > 0) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        TextButton(
+                            onClick = {
+                                onUpdateMonthlyBudget(0.0)
+                                showMonthlyBudgetDialog = false
+                                Toast.makeText(context, "Spending limit removed", Toast.LENGTH_SHORT).show()
+                            }
+                        ) {
+                            Text("Remove Limit (No Budget)", color = MaterialTheme.colorScheme.error)
+                        }
+                    }
                 }
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        val amount = newAmountStr.toDoubleOrNull()
-                        if (amount != null && amount > 0) {
-                            onUpdateMonthlyBudget(amount)
-                        }
+                        val amount = newAmountStr.toDoubleOrNull() ?: 0.0
+                        onUpdateMonthlyBudget(amount)
                         showMonthlyBudgetDialog = false
+                        Toast.makeText(
+                            context,
+                            if (amount > 0) "Monthly limit updated to $currencySymbol$amount" else "Spending limit removed",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
                 ) {
                     Text("Save")
@@ -678,6 +789,72 @@ fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showMonthlyBudgetDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // Dialog: Restore Data from JSON Backup
+    if (showRestoreDialog) {
+        var jsonInput by remember { mutableStateOf("") }
+        var errorMessage by remember { mutableStateOf<String?>(null) }
+
+        AlertDialog(
+            onDismissRequest = { showRestoreDialog = false },
+            title = { Text("Restore Data from Backup") },
+            text = {
+                Column {
+                    Text(
+                        text = "Paste your exported JSON backup text below to restore your expenses and recurring bills:",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = jsonInput,
+                        onValueChange = {
+                            jsonInput = it
+                            errorMessage = null
+                        },
+                        placeholder = { Text("Paste JSON backup content here...") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(150.dp),
+                        maxLines = 8
+                    )
+                    if (errorMessage != null) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = errorMessage!!,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val parsed = BackupManager.parseBackupJson(jsonInput)
+                        if (parsed != null && (parsed.first.isNotEmpty() || parsed.second.isNotEmpty())) {
+                            onRestoreBackup(parsed.first, parsed.second)
+                            showRestoreDialog = false
+                            Toast.makeText(
+                                context,
+                                "Successfully restored ${parsed.first.size} expenses and ${parsed.second.size} bills!",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        } else {
+                            errorMessage = "Invalid backup format. Please paste valid JSON."
+                        }
+                    }
+                ) {
+                    Text("Restore Now")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRestoreDialog = false }) {
                     Text("Cancel")
                 }
             }

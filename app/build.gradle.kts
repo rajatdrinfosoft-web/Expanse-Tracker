@@ -31,8 +31,8 @@ android {
     applicationId = "com.aistudio.expansetracker.vptx"
     minSdk = 24
     targetSdk = 36
-    versionCode = 1
-    versionName = "1.0"
+    versionCode = 2
+    versionName = "1.1"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -77,13 +77,19 @@ android {
   }
 }
 
+val apkTargetDir = rootProject.layout.projectDirectory.dir("apk")
+
 tasks.register<Copy>("copyDebugApk") {
   dependsOn("assembleDebug")
   from(layout.buildDirectory.dir("outputs/apk/debug")) {
     include("app-debug.apk")
+    rename("app-debug.apk", "expansetracker.apk")
   }
-  into(rootProject.layout.projectDirectory.dir("apk"))
-  rename("app-debug.apk", "expansetracker.apk")
+  from(layout.buildDirectory.dir("outputs/apk/debug")) {
+    include("app-debug.apk")
+    rename("app-debug.apk", "ExpanseTracker.apk")
+  }
+  into(apkTargetDir)
 }
 
 // Configure the Secrets Gradle Plugin to use .env and .env.example files
